@@ -87,7 +87,10 @@ def fetch_anilist_user_list(username: str, media_type: str) -> list:
         except requests.exceptions.RequestException as e:
             status_code = e.response.status_code if hasattr(e, 'response') and e.response is not None else None
             print(f"DEBUG: AniList API Error {status_code}. Retrying ({attempt+1}/3)...")
-            time.sleep(2)
+            if status_code == 429:
+                time.sleep(5)
+            else:
+                time.sleep(2)
             
     print("DEBUG: AniList API failed after 3 retries. Returning empty list as fallback.")
     return []

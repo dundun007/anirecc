@@ -48,7 +48,6 @@ def get_recent_myanimelist_manga(username: str) -> list[dict]:
         list_status = item.get("list_status", {})
 
         updated_str = list_status.get("updated_at")
-        print(f"DEBUG: {node.get('title')} was last updated on {updated_str}")
         
         if updated_str:
             updated_at = datetime.fromisoformat(updated_str).timestamp()
@@ -94,6 +93,7 @@ def fetch_myanimelist_user_list(username: str, media_type: str) -> list:
                 if next_url:
                     mal_api_url = next_url
                     params = {}
+                    time.sleep(0.5)
                 else:
                     mal_api_url = None
                     
@@ -102,7 +102,10 @@ def fetch_myanimelist_user_list(username: str, media_type: str) -> list:
             except requests.exceptions.RequestException as e:
                 status_code = e.response.status_code if hasattr(e, 'response') and e.response is not None else None
                 print(f"DEBUG: MyAnimeList API Error {status_code}. Retrying ({attempt+1}/3)...")
-                time.sleep(2)
+                if status_code == 429:
+                    time.sleep(5)
+                else:
+                    time.sleep(2)
                 
         if not success:
             print("DEBUG: MyAnimeList API failed after 3 retries. Aborting list fetch.")
