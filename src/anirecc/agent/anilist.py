@@ -8,120 +8,50 @@ ANILIST_API_URL = "https://graphql.anilist.co"
 # Fetches a user's AniList anime activity from the past 7 days.
 def get_recent_anilist_anime(username: str) -> list[dict]:
     print(f"DEBUG: Agent fetching recent anime activity for {username} on AniList...")
-    graphql_query = """
-    query ($userName: String) {
-        MediaListCollection(userName: $userName, type: ANIME, sort: UPDATED_TIME_DESC) {
-            lists {
-                name
-                entries {
-                    media {
-                        title { 
-                            romaji 
-                            english 
-                        }
-                        genres
-                    }
-                    status
-                    updatedAt
-                }
-            }
-        }
-    }
-    """
+    lists = fetch_anilist_user_list(username, "ANIME")
     
-    variables = {
-        "userName": username
-    }
+    recent_activity = []
+    seven_days_ago = int(time.time()) - (7 * 24 * 60 * 60)
     
-    try:
-        response = requests.post(ANILIST_API_URL, json={'query': graphql_query, 'variables': variables})
-        response.raise_for_status()
-        data = response.json()
-        
-        lists = data.get("data", {}).get("MediaListCollection", {}).get("lists", [])
-        
-        recent_activity = []
-        
-        seven_days_ago = int(time.time()) - (7 * 24 * 60 * 60)
-        
-        for anime_list in lists:
-            entries = anime_list.get("entries", [])
-            for entry in entries:
-                if entry.get("updatedAt", 0) >= seven_days_ago and entry.get("status") in ["CURRENT", "COMPLETED"]:
-                    title = entry["media"]["title"].get("english") or entry["media"]["title"].get("romaji")
-                    
-                    recent_activity.append({
-                        "title": title,
-                        "genres": entry["media"].get("genres", []),
-                        "status": entry.get("status"),
-                    })
+    for anime_list in lists:
+        entries = anime_list.get("entries", [])
+        for entry in entries:
+            if entry.get("updatedAt", 0) >= seven_days_ago and entry.get("status") in ["CURRENT", "COMPLETED"]:
+                title = entry["media"]["title"].get("english") or entry["media"]["title"].get("romaji")
                 
-        return recent_activity
-        
-    except requests.exceptions.RequestException as e:
-        print(f"Error querying AniList API: {e}")
-        return []
+                recent_activity.append({
+                    "title": title,
+                    "genres": entry["media"].get("genres", []),
+                    "status": entry.get("status"),
+                })
+            
+    return recent_activity
 
 # Fetches a user's AniList manga activity from the past 7 days.
 def get_recent_anilist_manga(username: str) -> list[dict]:
     print(f"DEBUG: Agent fetching recent manga activity for {username} on AniList...")
-    graphql_query = """
-    query ($userName: String) {
-        MediaListCollection(userName: $userName, type: MANGA, sort: UPDATED_TIME_DESC) {
-            lists {
-                name
-                entries {
-                    media {
-                        title { 
-                            romaji 
-                            english 
-                        }
-                        genres
-                    }
-                    status
-                    updatedAt
-                }
-            }
-        }
-    }
-    """
+    lists = fetch_anilist_user_list(username, "MANGA")
     
-    variables = {
-        "userName": username
-    }
+    recent_activity = []
+    seven_days_ago = int(time.time()) - (7 * 24 * 60 * 60)
     
-    try:
-        response = requests.post(ANILIST_API_URL, json={'query': graphql_query, 'variables': variables})
-        response.raise_for_status()
-        data = response.json()
-        
-        lists = data.get("data", {}).get("MediaListCollection", {}).get("lists", [])
-        
-        recent_activity = []
-        
-        seven_days_ago = int(time.time()) - (7 * 24 * 60 * 60)
-        
-        for anime_list in lists:
-            entries = anime_list.get("entries", [])
-            for entry in entries:
-                if entry.get("updatedAt", 0) >= seven_days_ago and entry.get("status") in ["CURRENT", "COMPLETED"]:
-                    title = entry["media"]["title"].get("english") or entry["media"]["title"].get("romaji")
-                    
-                    recent_activity.append({
-                        "title": title,
-                        "genres": entry["media"].get("genres", []),
-                        "status": entry.get("status"),
-                    })
+    for anime_list in lists:
+        entries = anime_list.get("entries", [])
+        for entry in entries:
+            if entry.get("updatedAt", 0) >= seven_days_ago and entry.get("status") in ["CURRENT", "COMPLETED"]:
+                title = entry["media"]["title"].get("english") or entry["media"]["title"].get("romaji")
                 
-        return recent_activity
-        
-    except requests.exceptions.RequestException as e:
-        print(f"Error querying AniList API: {e}")
-        return []
+                recent_activity.append({
+                    "title": title,
+                    "genres": entry["media"].get("genres", []),
+                    "status": entry.get("status"),
+                })
+            
+    return recent_activity
 
 # Fetches a user's entire AniList manga/anime collection
 @lru_cache(maxsize=32)
-def _fetch_anilist_user_list(username: str, media_type: str) -> list:
+def fetch_anilist_user_list(username: str, media_type: str) -> list:
     graphql_query = """
     query ($userName: String, $mediaType: MediaType) {
         MediaListCollection(userName: $userName, type: $mediaType) {
@@ -133,7 +63,10 @@ def _fetch_anilist_user_list(username: str, media_type: str) -> list:
                             english 
                         }
                         synonyms
+                        genres
                     }
+                    status
+                    updatedAt
                 }
             }
         }
@@ -162,7 +95,7 @@ def _fetch_anilist_user_list(username: str, media_type: str) -> list:
 # Checks if a title exists in the user's AniList.
 def check_anilist_title_in_user_list(username: str, title: str, media_type: str) -> bool:
     print(f"DEBUG: Agent checking if '{title}' is in {username}'s list...")
-    lists = _fetch_anilist_user_list(username, media_type)
+    lists = fetch_anilist_user_list(username, media_type)
 
     search_title = title.lower()
 

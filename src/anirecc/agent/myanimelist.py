@@ -12,100 +12,59 @@ MAL_CLIENT_ID = os.getenv("MAL_CLIENT_ID")
 # Fetches a user's MyAnimeList anime activity from the past 7 days.
 def get_recent_myanimelist_anime(username: str) -> list[dict]:
     print(f"DEBUG: Agent fetching recent anime activity for {username} on MyAnimeList...")
-    mal_api_url = f"https://api.myanimelist.net/v2/users/{username}/animelist"
-
-    headers = {
-        "X-MAL-CLIENT-ID": MAL_CLIENT_ID
-    }
+    items = fetch_myanimelist_user_list(username, "anime")
     
-    params = {
-        "fields": "list_status, genres",
-        "sort": "list_updated_at",
-        "limit": 50
-    }
+    recent_activity = []
+    seven_days_ago = int(time.time()) - (7 * 24 * 60 * 60)
+    
+    for item in items:
+        node = item.get("node", {})
+        list_status = item.get("list_status", {})
 
-    try:
-        response = requests.get(mal_api_url, headers=headers, params = params)
-        response.raise_for_status()
-        data = response.json()
+        updated_str = list_status.get("updated_at")
         
-        recent_activity = []
+        if updated_str:
+            updated_at = datetime.fromisoformat(updated_str).timestamp()
 
-        seven_days_ago = int(time.time()) - (7 * 24 * 60 * 60)
+            if updated_at >= seven_days_ago and list_status.get("status") in ["watching", "completed"]:
+                recent_activity.append({
+                    "title" : node.get("title"),
+                    "genres": [g.get("name") for g in node.get("genres", [])],
+                    "status" : list_status.get("status")
+                })
         
-        for item in data.get("data", []):
-            node = item.get("node", {})
-            list_status = item.get("list_status", {})
-
-            updated_str = list_status.get("updated_at")
-            
-            if updated_str:
-                updated_at = datetime.fromisoformat(updated_str).timestamp()
-
-                if updated_at >= seven_days_ago and list_status.get("status") in ["watching", "completed"]:
-                    recent_activity.append({
-                        "title" : node.get("title"),
-                        "genres": [g.get("name") for g in node.get("genres", [])],
-                        "status" : list_status.get("status")
-                    })
-            
-        return recent_activity
-        
-    except requests.exceptions.RequestException as e:
-        print(f"Error querying MyAnimeList API: {e}")
-        return []
+    return recent_activity
 
 # Fetches a user's MyAnimeList manga activity from the past 7 days.
 def get_recent_myanimelist_manga(username: str) -> list[dict]:
     print(f"DEBUG: Agent fetching recent manga activity for {username} on MyAnimeList...")
-    mal_api_url = f"https://api.myanimelist.net/v2/users/{username}/mangalist"
-
-    headers = {
-        "X-MAL-CLIENT-ID": MAL_CLIENT_ID
-    }
+    items = fetch_myanimelist_user_list(username, "manga")
     
-    params = {
-        "fields": "list_status, genres",
-        "sort": "list_updated_at",
-        "limit": 50
-    }
+    recent_activity = []
+    seven_days_ago = int(time.time()) - (7 * 24 * 60 * 60)
+    
+    for item in items:
+        node = item.get("node", {})
+        list_status = item.get("list_status", {})
 
-    try:
-        response = requests.get(mal_api_url, headers=headers, params = params)
-        response.raise_for_status()
-        data = response.json()
+        updated_str = list_status.get("updated_at")
+        print(f"DEBUG: {node.get('title')} was last updated on {updated_str}")
         
-        recent_activity = []
+        if updated_str:
+            updated_at = datetime.fromisoformat(updated_str).timestamp()
 
-        seven_days_ago = int(time.time()) - (7 * 24 * 60 * 60)
+            if updated_at >= seven_days_ago and list_status.get("status") in ["reading", "completed"]:
+                recent_activity.append({
+                    "title" : node.get("title"),
+                    "genres": [g.get("name") for g in node.get("genres", [])],
+                    "status" : list_status.get("status")
+                })
         
-        for item in data.get("data", []):
-            node = item.get("node", {})
-            list_status = item.get("list_status", {})
-
-            updated_str = list_status.get("updated_at")
-            print(f"DEBUG: {node.get('title')} was last updated on {updated_str}")
-
-            
-            if updated_str:
-                updated_at = datetime.fromisoformat(updated_str).timestamp()
-
-                if updated_at >= seven_days_ago and list_status.get("status") in ["reading", "completed"]:
-                    recent_activity.append({
-                        "title" : node.get("title"),
-                        "genres": [g.get("name") for g in node.get("genres", [])],
-                        "status" : list_status.get("status")
-                    })
-            
-        return recent_activity
-        
-    except requests.exceptions.RequestException as e:
-        print(f"Error querying MyAnimeList API: {e}")
-        return []
+    return recent_activity
 
 # Fetches a user's entire MyAnimeList manga/anime collection
 @lru_cache(maxsize=32)
-def _fetch_myanimelist_user_list(username: str, media_type: str) -> list:
+def fetch_myanimelist_user_list(username: str, media_type: str) -> list:
     mal_api_url = f"https://api.myanimelist.net/v2/users/{username}/{media_type.lower()}list"
     
     headers = {
@@ -113,7 +72,7 @@ def _fetch_myanimelist_user_list(username: str, media_type: str) -> list:
     }
 
     params = {
-        "fields": "alternative_titles",
+        "fields": "alternative_titles,list_status,genres",
         "limit": 100
     }
 
@@ -154,7 +113,7 @@ def _fetch_myanimelist_user_list(username: str, media_type: str) -> list:
 # Checks if a title exists in the user's MyAnimeList.
 def check_myanimelist_title_in_user_list(username: str, title: str, media_type: str) -> bool:
     print(f"DEBUG: Agent checking if '{title}' is in {username}'s list...")
-    items = _fetch_myanimelist_user_list(username, media_type)
+    items = fetch_myanimelist_user_list(username, media_type)
     search_title = title.lower()
     
     for item in items:
