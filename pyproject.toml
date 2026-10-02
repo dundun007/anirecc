@@ -9,9 +9,12 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "azure-communication-email>=1.1.0",
+    "botocore[crt]>=1.43.107",
+    "langchain-aws>=1.8.0",
     "langchain-google-genai>=4.4.0",
     "langchain-openai>=1.6.2",
     "langchain[openai]>=1.4.1",
+    "psycopg2-binary>=2.9.13",
     "python-dotenv>=1.2.3",
     "requests>=2.34.2",
 ]

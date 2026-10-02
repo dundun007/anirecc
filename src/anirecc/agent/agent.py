@@ -21,11 +21,6 @@ from myanimelist import (
 
 load_dotenv()
 
-model = ChatGoogleGenerativeAI(
-    model="gemini-3.5-flash-lite",
-    temperature=0.7,
-)
-
 @tool
 def get_recent_anilist_anime(username: str) -> str:
     """Get the recent anime activity for a given username."""
@@ -66,6 +61,11 @@ def verify_title_exists_on_mal(title: str, media_type: str) -> str:
     """Check if a title actually exists in the global MyAnimeList database."""
     return _verify_title_exists_on_mal(title, media_type)
 
+model = ChatGoogleGenerativeAI(
+    model="gemini-3.5-flash-lite",
+    temperature=0.7,
+)
+
 agent = create_agent(
     model=model,
     tools=[
@@ -80,14 +80,22 @@ agent = create_agent(
     "IMPORTANT: Before providing a recommendation, you MUST first use the appropriate check tool 
     (e.g., 'check_anilist_title_in_user_list' or 'check_myanimelist_title_in_user_list') to verify the user hasn't already read/watched it. 
     If they haven't, you MUST then use the corresponding verification tool (e.g., 'verify_title_exists_on_anilist' or 'verify_title_exists_on_mal') to get the database URL. 
-    If either tool fails or returns 'Not found', try another title. When you give your final recommendation, you MUST include the URL you got from the verification tool.
+    If either tool fails or returns 'Not found', try another title. 
+    
+    When you give your final recommendation, you MUST strictly use this exact format for the link at the very end of your response:
+    You can view it on [Platform Name] here: [Official Title](URL)
     """)
 
 if __name__ == "__main__":
-    print("Sending request to LLM...")
+    target_user = os.environ["TARGET_USER"]
+    target_platform = os.environ["TARGET_PLATFORM"]
+    target_media = os.environ["TARGET_MEDIA"]
+    
+    prompt = f"What is the recent {target_media} activity on {target_platform} for user {target_user}, and what {target_media} should they read next based on it?"
+    print(f"Sending request to LLM for {target_user} on {target_platform} ({target_media})...")
     
     result = agent.invoke({
-        "messages": [{"role": "user", "content": "What is the recent manga activity on AniList for user saltaky, and what manga should they read next based on it?"}]
+        "messages": [{"role": "user", "content": prompt}]
     })
     
     print("\nResponse:")
